@@ -2,8 +2,12 @@
 #include <stdlib.h>
 #include <stdbool.h> // bool型を使用するために必要
 #include <math.h>
+#include <time.h>
 
-#define N 300 // 領域のサイズ（300mm x 300mm）
+#define N           300     // 領域のサイズ（300mm x 300mm）
+#define ITERATION   10000   //計算回数
+#define OMEGA       1.95    // SOR法の加速係数（1~2）
+
 
 double phi[N][N];
 bool is_electrode[N][N];
@@ -60,10 +64,7 @@ void outer_rectangle_electrode() {
                 
                 phi[i][j] = 0.0;          // 長方形金属を0Vとする
                 is_electrode[i][j] = true;
-            } else {
-                phi[i][j] = 0.0; 
-                is_electrode[i][j] = false;
-            }
+            } 
         }
     }
 }
@@ -99,18 +100,15 @@ void inner_rectangle_electrode() {
                 
                 phi[i][j] = 0.0;          // 長方形金属を0Vとする
                 is_electrode[i][j] = true;
-            } else {
-                phi[i][j] = 0.0; 
-                is_electrode[i][j] = false;
-            }
+            } 
         }
     }
 }
 
 #define R1 50 //円電極の内径
 #define R2 60 //円電極の外径
-#define centerX  80 //円電極のx座標
-#define centerY 156 //円電極のy座標
+#define centerX  80 //中心のx座標
+#define centerY 156 //中心のy座標
 
 void circle_electrode(){
 
@@ -124,10 +122,7 @@ void circle_electrode(){
             if (R1 <= radius && radius <= R2){
                 phi[i][j] = 6.0;
                 is_electrode[i][j] = true; 
-            } else {
-                phi[i][j] = 0.0;
-                is_electrode[i][j] = false;
-            }
+            } 
         }
     }
 }
@@ -146,19 +141,50 @@ int main(void) {
     inner_rectangle_electrode();
     circle_electrode();
 
-    // ラプラス方程式の反復計算ループ
-    int iterations = 2000;
+    //時間計測を開始
+    clock_t start_time = clock();
 
-    for (int iter = 0; iter < iterations; iter++){
+    // ラプラス方程式の反復計算ループ
+    for (int iter = 0; iter < ITERATION; iter++){
         //平均の計算
-        for (int i = 1; i < N - 1; i++){
-            for (int j = 1; j < N - 1; j++){
-               if(!is_electrode[i][j]){
-                phi[i][j] = (phi[i+1][j] + phi[i-1][j] + phi[i][j+1] + phi[i][j-1])/4;
-               }
+        for (int i = 0; i < N; i++){
+            for (int j = 0; j < N; j++){
+                // 電極および空孔内部は電位計算をスキップ
+                if(is_electrode[i][j]) continue;
+                
+                double sum = 0;
+
+                // --- 隣接４点を確認 ---
+                // 右（i+1）
+                if (i + 1 < N) { sum += phi[i + 1][j]; }
+                else {sum += phi[i][j]; } //空孔なら勾配0
+
+                // 左 (i-1)
+                if (i - 1 >= 0) { sum += phi[i - 1][j]; }
+                else { sum += phi[i][j]; }
+
+                // 下 (j+1)
+                if (j + 1 < N) { sum += phi[i][j + 1]; }
+                else { sum += phi[i][j]; }
+
+                // 上 (j-1)
+                if (j - 1 >= 0) { sum += phi[i][j - 1]; }
+                else { sum += phi[i][j]; }
+                    
+                //新しい電位を計算
+                double phi_new = 0.25 * sum;
+                phi[i][j] = phi[i][j] + OMEGA * (phi_new - phi[i][j]);
+            
             }
         }
     }
+
+    //時間計測の終了
+    clock_t end_time = clock();
+
+    double duration = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+    printf("試行時間: %.3f 秒\n", duration);
+    printf("試行回数: %d 回\n", ITERATION);
 
     // 3. ファイルに出力
     save_to_csv("vol_sim.csv");
