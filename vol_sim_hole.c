@@ -2,8 +2,11 @@
 #include <stdlib.h>
 #include <stdbool.h> // bool型を使用するために必要
 #include <math.h>
+#include <time.h>
 
-#define N 300 // 領域のサイズ（300mm x 300mm）
+#define N           300     // 領域のサイズ（300mm x 300mm）
+#define ITERATION   10000   // ラプラス反復計算の回数
+#define OMEGA       1.90    //SOR法の加速係数(1.0~2.0)
 
 double phi[N][N];
 bool is_electrode[N][N];
@@ -139,7 +142,9 @@ void hole(){ //holeにはフラグを立てておく。(あとで計算)
             // 判定：2つのベクトルの影が辺の長さの中に収まっているか
             if (dot_IJ >= 0 && dot_IJ <= IJ_dot_IJ &&
                 dot_IL >= 0 && dot_IL <= IL_dot_IL) {
-            
+
+                //空孔内の電位はないが、見やすさのため0Vとする。
+                phi[i][j] = 0.0; 
                 is_hole[i][j] = true;
             } 
         }
@@ -164,42 +169,57 @@ int main(void) {
     //ホールの配置
     hole();
 
+    //時間計測開始
+    clock_t start_time = clock();
+
     // ラプラス方程式の反復計算ループ
-    int iterations = 2000;
+    //int iterations = 10000;
 
-    for (int iter = 0; iter < iterations; iter++){
-        //平均の計算
-        for (int i = 1; i < N - 1; i++){
-            for (int j = 1; j < N - 1; j++){
+    for (int iter = 0; iter < ITERATION; iter++){
+        // 反復回数が偶数か奇数かでスキャン方法を変える
+        bool reverse = (iter % 2 == 1);
 
+        for (int i_raw = 0; i_raw < N; i_raw++){
+            for (int j_raw = 0; j_raw < N; j_raw++){
+                //方向制御
+                int i = reverse ? (N - 1 - i_raw) : i_raw;
+                int j = reverse ? (N - 1 - j_raw) : j_raw;
+                
                 // 電極および空孔内部は電位計算をスキップ
                 if(is_electrode[i][j] || is_hole[i][j]) continue;
                 
                 double sum = 0;
-                int count = 0;
 
                 // --- 隣接４点を確認 ---
                 // 右（i+1）
-                if (i + 1 < N && !is_hole[i + 1][j]) { sum += phi[i + 1][j]; count++; }
-                else { sum += phi[i][j]; count++; } //空孔なら同じ値とみなし、勾配=0にする。 
+                if (i + 1 < N && !is_hole[i + 1][j]) { sum += phi[i + 1][j]; }
+                else {sum += phi[i][j]; } //空孔なら勾配0
 
                 // 左 (i-1)
-                if (i - 1 >= 0 && !is_hole[i - 1][j]) { sum += phi[i - 1][j]; count++; }
-                else { sum += phi[i][j]; count++; }
+                if (i - 1 >= 0 && !is_hole[i - 1][j]) { sum += phi[i - 1][j]; }
+                else { sum += phi[i][j]; }
 
                 // 下 (j+1)
-                if (j + 1 < N && !is_hole[i][j + 1]) { sum += phi[i][j + 1]; count++; }
-                else { sum += phi[i][j]; count++; }
+                if (j + 1 < N && !is_hole[i][j + 1]) { sum += phi[i][j + 1]; }
+                else { sum += phi[i][j]; }
 
                 // 上 (j-1)
-                if (j - 1 >= 0 && !is_hole[i][j - 1]) { sum += phi[i][j - 1]; count++; }
-                else { sum += phi[i][j]; count++; }
+                if (j - 1 >= 0 && !is_hole[i][j - 1]) { sum += phi[i][j - 1]; }
+                else { sum += phi[i][j]; }
                     
                 //新しい電位を計算
-                phi[i][j] = sum / (double)count;
+                double phi_new = 0.25 * sum;
+                phi[i][j] = phi[i][j] + OMEGA * (phi_new - phi[i][j]);
             }
         }
     }
+
+    //時間計測終了
+    clock_t end_time = clock();
+
+    double duration = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+    printf("計算時間: %.3f 秒\n", duration);
+    printf("計算回数: %d 回\n", ITERATION);
 
     // 3. ファイルに出力
     save_to_csv("vol_sim_hole.csv");
