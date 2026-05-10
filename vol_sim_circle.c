@@ -100,8 +100,8 @@ int main(void) {
     clock_t start_time = clock();
 
     // ラプラス方程式の反復計算ループ
-    double max_diff;
-    int iter = 0;
+    double  max_diff;
+    int     iter = 0;
 
     do {
         max_diff = 0.0;
@@ -112,7 +112,7 @@ int main(void) {
                 // 電極および空孔内部は電位計算をスキップ
                 if(is_electrode[i][j]) continue;
                 
-                double old_val = phi[i][j];
+                double old_val = phi[i][j]; //１ステップ前を記録しておく
                 double sum = 0;
 
                 // --- 隣接４点を確認 ---
@@ -129,8 +129,11 @@ int main(void) {
                 //新しい電位を計算
                 double phi_new = 0.25 * sum;
                 phi[i][j] = old_val + OMEGA * (phi_new - old_val);
-                if (fabs(phi[i][j]) > 1e-10){
-                max_diff = fabs(phi_new - phi[i][j]) / fabs(phi[i][j]);
+
+                // 相対誤差が最大のものを採用
+                if (fabs(phi[i][j]) > 1e-10){ //分母0を回避
+                    double diff = fabs(phi_new - old_val) / fabs(old_val);
+                    if (diff > max_diff) max_diff = diff;
                 }
             }
         }
