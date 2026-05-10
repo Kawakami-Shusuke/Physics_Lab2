@@ -7,6 +7,7 @@
 #define N           300     // 領域のサイズ（300mm x 300mm）
 #define ITERATION   10000   //計算回数
 #define OMEGA       1.95    // SOR法の加速係数（1~2）
+#define DIFF_REQ     1e-5   // 必要な精度
 
 
 double phi[N][N];
@@ -145,46 +146,53 @@ int main(void) {
     clock_t start_time = clock();
 
     // ラプラス方程式の反復計算ループ
-    for (int iter = 0; iter < ITERATION; iter++){
-        //平均の計算
+    double max_diff;
+    int iter = 0;
+
+    do {
+        max_diff = 0.0;
+
         for (int i = 0; i < N; i++){
             for (int j = 0; j < N; j++){
                 // 電極および空孔内部は電位計算をスキップ
                 if(is_electrode[i][j]) continue;
-                
+
+                double old_val = phi[i][j]; //１ステップ前を記録しておく
                 double sum = 0;
 
                 // --- 隣接４点を確認 ---
                 // 右（i+1）
-                if (i + 1 < N) { sum += phi[i + 1][j]; }
-                else {sum += phi[i][j]; } //空孔なら勾配0
-
+                sum += (i + 1 < N) ? phi[i + 1][j] : phi[i][j]; 
+                //導体紙外縁なら勾配0
                 // 左 (i-1)
-                if (i - 1 >= 0) { sum += phi[i - 1][j]; }
-                else { sum += phi[i][j]; }
-
+                sum += (i - 1 >= 0) ? phi[i - 1][j] : phi[i][j];
                 // 下 (j+1)
-                if (j + 1 < N) { sum += phi[i][j + 1]; }
-                else { sum += phi[i][j]; }
-
+                sum += (j + 1 < N) ? phi[i][j + 1] : phi[i][j];
                 // 上 (j-1)
-                if (j - 1 >= 0) { sum += phi[i][j - 1]; }
-                else { sum += phi[i][j]; }
+                sum += (j - 1 >= 0) ? phi[i][j - 1] : phi[i][j];
                     
                 //新しい電位を計算
                 double phi_new = 0.25 * sum;
-                phi[i][j] = phi[i][j] + OMEGA * (phi_new - phi[i][j]);
-            
+                phi[i][j] = old_val + OMEGA * (phi_new - old_val);
+
+                //
+                if (fabs(phi[i][j]) > 1e-10){ //分母0を回避
+                    double diff = fabs(phi_new - phi[i][j]) / fabs(phi[i][j]);
+                    if (diff > max_diff) max_diff = diff;
+                }
             }
         }
-    }
+        iter++;
+
+    } while (max_diff > DIFF_REQ && iter < ITERATION);
 
     //時間計測の終了
     clock_t end_time = clock();
 
     double duration = (double)(end_time - start_time) / CLOCKS_PER_SEC;
     printf("試行時間: %.3f 秒\n", duration);
-    printf("試行回数: %d 回\n", ITERATION);
+    printf("試行回数: %d 回\n", iter);
+    printf("計算精度: %.1e\n", DIFF_REQ);
 
     // 3. ファイルに出力
     save_to_csv("vol_sim.csv");
