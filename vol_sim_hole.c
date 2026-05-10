@@ -5,8 +5,9 @@
 #include <time.h>
 
 #define N           300     // 領域のサイズ（300mm x 300mm）
-#define ITERATION   10000   // ラプラス反復計算の回数
-#define OMEGA       1.90    //SOR法の加速係数(1.0~2.0)
+#define ITERATION   100000   // ラプラス反復計算の回数
+#define OMEGA       1.4    // SOR法の加速係数(1.0~2.0)
+#define DIFF_REQ    1e-5    // 必要な精度
 
 double phi[N][N];
 bool is_electrode[N][N];
@@ -173,9 +174,12 @@ int main(void) {
     clock_t start_time = clock();
 
     // ラプラス方程式の反復計算ループ
-    //int iterations = 10000;
+    double  max_diff;
+    int     iter = 0;
 
-    for (int iter = 0; iter < ITERATION; iter++){
+    do {
+        max_diff = 0.0;
+
         // 反復回数が偶数か奇数かでスキャン方法を変える
         bool reverse = (iter % 2 == 1);
 
@@ -188,38 +192,45 @@ int main(void) {
                 // 電極および空孔内部は電位計算をスキップ
                 if(is_electrode[i][j] || is_hole[i][j]) continue;
                 
+                double old_val = phi[i][j]; //1ステップ前を記録しておく
                 double sum = 0;
 
                 // --- 隣接４点を確認 ---
                 // 右（i+1）
-                if (i + 1 < N && !is_hole[i + 1][j]) { sum += phi[i + 1][j]; }
-                else {sum += phi[i][j]; } //空孔なら勾配0
-
+                //導体紙外縁および空孔なら勾配0
+                sum += (i + 1 < N && !is_hole[i + 1][j]) ? phi[i + 1][j] : phi[i][j];
                 // 左 (i-1)
-                if (i - 1 >= 0 && !is_hole[i - 1][j]) { sum += phi[i - 1][j]; }
-                else { sum += phi[i][j]; }
-
+                sum += (i - 1 >= 0 && !is_hole[i - 1][j]) ? phi[i - 1][j] : phi[i][j];
                 // 下 (j+1)
-                if (j + 1 < N && !is_hole[i][j + 1]) { sum += phi[i][j + 1]; }
-                else { sum += phi[i][j]; }
-
+                sum += (j + 1 < N && !is_hole[i][j + 1]) ? phi[i][j + 1] : phi[i][j];
                 // 上 (j-1)
-                if (j - 1 >= 0 && !is_hole[i][j - 1]) { sum += phi[i][j - 1]; }
-                else { sum += phi[i][j]; }
+                sum += (j - 1 >= 0 && !is_hole[i][j - 1]) ? phi[i][j - 1] : phi[i][j];
                     
                 //新しい電位を計算
                 double phi_new = 0.25 * sum;
-                phi[i][j] = phi[i][j] + OMEGA * (phi_new - phi[i][j]);
-            }
-        }
-    }
+                phi[i][j] = old_val + OMEGA * (phi_new - old_val);
+                
+                // 相対誤差が最大のものを採用
+                if (fabs(phi[i][j]) > 1e-10){
+                    double diff = fabs(phi_new - old_val) / fabs(old_val);
+                    if (diff > max_diff) max_diff = diff;
+                }
+            } //end of for x_axis
+        } //end of for y_axis
+        iter++;
+
+        // 1000回ごとに状況を表示
+        if (iter % 1000 == 0) printf("Iter: %d, MaxDiff: %e\n", iter, max_diff);
+
+    } while (max_diff > DIFF_REQ && iter < ITERATION);
 
     //時間計測終了
     clock_t end_time = clock();
 
     double duration = (double)(end_time - start_time) / CLOCKS_PER_SEC;
     printf("計算時間: %.3f 秒\n", duration);
-    printf("計算回数: %d 回\n", ITERATION);
+    printf("計算回数: %d 回\n", iter);
+    printf("計算精度: %.1e\n", DIFF_REQ);
 
     // 3. ファイルに出力
     save_to_csv("vol_sim_hole.csv");
