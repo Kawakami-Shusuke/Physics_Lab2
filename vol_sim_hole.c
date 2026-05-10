@@ -6,7 +6,7 @@
 
 #define N           300     // 領域のサイズ（300mm x 300mm）
 #define ITERATION   100000   // ラプラス反復計算の回数
-#define OMEGA       1.0    // SOR法の加速係数(1.0~2.0)
+#define OMEGA       1.990    // SOR法の加速係数(1.0~2.0)
 #define DIFF_REQ    1e-5    // 必要な精度
 
 double phi[N][N];
@@ -185,7 +185,7 @@ int main(void) {
 
         for (int i = 0; i < N; i++){
             for (int j = 0; j < N; j++){
-                
+
                 //方向制御。悪影響が大きくボツにしました。
                 //int i = reverse ? (N - 1 - i_raw) : i_raw;
                 //int j = reverse ? (N - 1 - j_raw) : j_raw;
