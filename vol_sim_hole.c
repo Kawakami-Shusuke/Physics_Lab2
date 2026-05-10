@@ -6,7 +6,7 @@
 
 #define N           300     // 領域のサイズ（300mm x 300mm）
 #define ITERATION   100000   // ラプラス反復計算の回数
-#define OMEGA       1.4    // SOR法の加速係数(1.0~2.0)
+#define OMEGA       1.0    // SOR法の加速係数(1.0~2.0)
 #define DIFF_REQ    1e-5    // 必要な精度
 
 double phi[N][N];
@@ -183,11 +183,12 @@ int main(void) {
         // 反復回数が偶数か奇数かでスキャン方法を変える
         bool reverse = (iter % 2 == 1);
 
-        for (int i_raw = 0; i_raw < N; i_raw++){
-            for (int j_raw = 0; j_raw < N; j_raw++){
-                //方向制御
-                int i = reverse ? (N - 1 - i_raw) : i_raw;
-                int j = reverse ? (N - 1 - j_raw) : j_raw;
+        for (int i = 0; i < N; i++){
+            for (int j = 0; j < N; j++){
+                
+                //方向制御。悪影響が大きくボツにしました。
+                //int i = reverse ? (N - 1 - i_raw) : i_raw;
+                //int j = reverse ? (N - 1 - j_raw) : j_raw;
                 
                 // 電極および空孔内部は電位計算をスキップ
                 if(is_electrode[i][j] || is_hole[i][j]) continue;
@@ -228,6 +229,7 @@ int main(void) {
     clock_t end_time = clock();
 
     double duration = (double)(end_time - start_time) / CLOCKS_PER_SEC;
+    printf("OMEGA: %.3f\n", OMEGA);
     printf("計算時間: %.3f 秒\n", duration);
     printf("計算回数: %d 回\n", iter);
     printf("計算精度: %.1e\n", DIFF_REQ);
