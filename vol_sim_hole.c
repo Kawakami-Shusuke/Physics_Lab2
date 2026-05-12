@@ -182,7 +182,7 @@ int main(void) {
         max_diff = 0.0;
 
         // 反復回数が偶数か奇数かでスキャン方法を変える
-        bool reverse = (iter % 2 == 1);
+        //bool reverse = (iter % 2 == 1);
 
         for (int i = 0; i < N; i++){
             for (int j = 0; j < N; j++){
