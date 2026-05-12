@@ -7,7 +7,7 @@
 
 #define N           300     // 領域のサイズ（300mm x 300mm）
 #define ITERATION   100000   // ラプラス反復計算の回数
-#define OMEGA       1.80    // SOR法の加速係数(1.0~2.0)
+#define OMEGA       1.0    // SOR法の加速係数(1.0~2.0)
 #define DIFF_REQ    1e-5    // 必要な精度
 
 double phi[N][N];
