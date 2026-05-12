@@ -3,10 +3,11 @@
 #include <stdbool.h> // bool型を使用するために必要
 #include <math.h>
 #include <time.h>
+#include <windows.h>
 
 #define N           300     // 領域のサイズ（300mm x 300mm）
 #define ITERATION   100000   // ラプラス反復計算の回数
-#define OMEGA       1.990    // SOR法の加速係数(1.0~2.0)
+#define OMEGA       1.80    // SOR法の加速係数(1.0~2.0)
 #define DIFF_REQ    1e-5    // 必要な精度
 
 double phi[N][N];
@@ -221,7 +222,11 @@ int main(void) {
         iter++;
 
         // 1000回ごとに状況を表示
-        if (iter % 1000 == 0) printf("Iter: %d, MaxDiff: %e\n", iter, max_diff);
+        if (iter % 1000 == 0) {
+            printf("Iter: %d, MaxDiff: %e\n", iter, max_diff);
+            Beep(800, 100);
+        }
+            
 
     } while (max_diff > DIFF_REQ && iter < ITERATION);
 
@@ -236,6 +241,7 @@ int main(void) {
 
     // 3. ファイルに出力
     save_to_csv("vol_sim_hole.csv");
+    Beep(1000, 400);
 
     return 0;
 }
